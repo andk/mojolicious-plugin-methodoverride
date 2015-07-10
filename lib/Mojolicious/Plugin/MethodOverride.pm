@@ -13,16 +13,17 @@ sub register {
     my $header =
         exists $conf->{header} ? $conf->{header} : 'X-HTTP-Method-Override';
     my $param = exists $conf->{param} ? $conf->{param} : undef;
+    my $log = $app->log;
 
     $app->hook(
         after_build_tx => sub {
             my $tx = shift;
 
-            weaken $tx;
+            my $req = $tx->req;
+            weaken $req;
+            weaken $log;
 
             $tx->req->content->on(body => sub {
-                my $req = $tx->req;
-
                 return unless $req->method eq 'POST';
 
                 my $method = defined $header && $req->headers->header($header);
@@ -35,7 +36,7 @@ sub register {
                 }
 
                 if ($method and $method =~ /^[A-Za-z]+$/) {
-                    $app->log->debug(($header // $param) . ': ' . $method);
+                    $log->debug(($header // $param) . ': ' . $method);
                     $req->method($method);
                 }
             });
